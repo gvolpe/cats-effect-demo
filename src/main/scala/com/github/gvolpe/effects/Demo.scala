@@ -1,16 +1,20 @@
 package com.github.gvolpe.effects
 
-import cats.effect.{Async, Effect, IO, Sync}
+import cats.effect._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 // TODO: Include Monix when M2 is released
-object Demo extends EffectDemo with AsyncDemo with SyncDemo with App {
+object Demo extends EffectDemo with AsyncDemo with SyncDemo with LiftIODemo with App {
 
-  delay[IO].unsafeRunSync()
-  suspend[IO].unsafeRunSync()
+//  delay[IO].unsafeRunSync()
+//  suspend[IO].unsafeRunSync()
 
-//  val io: IO[String] = IO("Hello World!")
+  val io: IO[String] = IO("Hello World!")
+
+  val result: Future[String] = liftIO[Future, String](io)
+
+  println(result)
 
 //  runAsync(io).unsafeRunSync()
 
@@ -58,4 +62,23 @@ trait SyncDemo {
     Sync[F].pure(println("suspend(F[A])"))
   }
 
+}
+
+trait LiftIODemo {
+
+  implicit def listLiftIO: LiftIO[List] =
+    new LiftIO[List] {
+      override def liftIO[A](ioa: IO[A]): List[A] = {
+        ioa.attempt.unsafeRunSync.fold(_ => List.empty[A], List(_))
+      }
+    }
+
+  implicit def futureLiftIO: LiftIO[Future] =
+    new LiftIO[Future] {
+      override def liftIO[A](ioa: IO[A]): Future[A] =
+        ioa.unsafeToFuture()
+    }
+
+  def liftIO[F[_] : LiftIO, A](ioa: IO[A]): F[A] =
+    LiftIO[F].liftIO(ioa)
 }
