@@ -2,28 +2,7 @@ package com.github.gvolpe.effects
 
 import cats.effect._
 
-import scala.concurrent.{ExecutionContext, Future}
-
-// TODO: Include Monix when M2 is released
-object Demo extends EffectDemo with AsyncDemo with SyncDemo with LiftIODemo with App {
-
-//  delay[IO].unsafeRunSync()
-//  suspend[IO].unsafeRunSync()
-
-  val io: IO[String] = IO("Hello World!")
-
-  val result: Future[String] = liftIO[Future, String](io)
-
-  println(result)
-
-//  runAsync(io).unsafeRunSync()
-
-//  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
-//
-//  val result: String = async[IO].unsafeRunSync()
-//  println(result)
-
-}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
 trait EffectDemo {
 
@@ -49,6 +28,24 @@ trait AsyncDemo {
         case Failure(error) => cb(Left(error))
       }
     }
+
+  import java.util.concurrent.Executors
+  private val cachedThreadPool = Executors.newCachedThreadPool()
+  private val BlockingFileIO = ExecutionContext.fromExecutor(cachedThreadPool)
+  implicit val Main: ExecutionContextExecutor = ExecutionContext.global
+
+  import cats.syntax.flatMap._
+  import cats.syntax.functor._
+
+  def shiftingProgram[F[_] : Async]: F[Unit] =
+    for {
+      _     <- Sync[F].delay { println("Enter your name: ")}
+      _     <- Async[F].shift(BlockingFileIO)
+      name  <- Sync[F].delay { scala.io.StdIn.readLine() }
+      _     <- Async[F].shift
+      _     <- Sync[F].delay { println(s"Welcome $name!") }
+      _     <- Sync[F].delay(cachedThreadPool.shutdown())
+    } yield ()
 
 }
 

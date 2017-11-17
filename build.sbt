@@ -20,6 +20,7 @@ lazy val root = (project in file(".")).settings(
   name := "cats-effect-demo",
   libraryDependencies ++= Seq(
     catsEffect,
+    monixEval,
     fs2,
     http4sServer,
     http4sSClient,
