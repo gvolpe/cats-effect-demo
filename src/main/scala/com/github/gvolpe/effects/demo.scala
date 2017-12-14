@@ -63,10 +63,14 @@ trait SyncDemo {
 
 trait LiftIODemo {
 
-  implicit def listLiftIO: LiftIO[List] =
-    new LiftIO[List] {
-      override def liftIO[A](ioa: IO[A]): List[A] = {
-        ioa.attempt.unsafeRunSync.fold(_ => List.empty[A], List(_))
+  import monix.eval.Task
+
+  type MyEffect[A] = Task[Either[Throwable, A]]
+
+  implicit def myEffectLiftIO: LiftIO[MyEffect] =
+    new LiftIO[MyEffect] {
+      override def liftIO[A](ioa: IO[A]): MyEffect[A] = {
+        ioa.attempt.to[Task]
       }
     }
 
